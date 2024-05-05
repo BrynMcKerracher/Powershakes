@@ -1,0 +1,10 @@
+﻿{
+  "name": "Powershakes",
+  "description": "Adds milkshakes that provide boss powers to players.",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/BrynMcKerracher/Powershakes",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2202",
+    "ValheimModding-Jotunn-2.15.0"
+  ]
+}
