@@ -4,10 +4,7 @@ using Jotunn.Configs;
 using Jotunn.Entities;
 using Jotunn.Managers;
 using Jotunn.Utils;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace Powershakes
@@ -18,63 +15,42 @@ namespace Powershakes
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     internal class PowershakesPlugin : BaseUnityPlugin
     {
+        //Plugin Data
         public const string PluginGUID = "TinyOak.Powershakes";
         public const string PluginName = "Powershakes";
-        public const string PluginVersion = "1.2.0";
+        public const string PluginVersion = "1.3.0";
         
-        public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
-        private readonly Harmony _harmonyPatcher = new(PluginGUID);
-
+        //Localization
+        public CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        
         //Asset Bundles
-        private static AssetBundle _powershakeAssets;
+        private AssetBundle _powershakeAssets;
 
         //Custom Status Effects
-        public static CustomStatusEffect SailingPowerStatusEffect;
-        public static CustomStatusEffect EikthyrPowerStatusEffect;
+        private CustomStatusEffect GutBlasterStatusEffect;
+        private CustomStatusEffect TreeMurdererStatusEffect;
+        private CustomStatusEffect DeerGodStatusEffect;
 
-        //VFX/SFX
-        public static GameObject GuckshakeSFXPrefab;
+        //Harmony Patcher
+        private readonly Harmony _harmonyPatcher = new(PluginGUID);
 
-        //RPCs
-        public static CustomRPC RpcGuckEffect;
-
+        /// <summary>
+        /// All initialisation for the mod happens in Awake().
+        /// </summary>
         private void Awake()
         {
-            Jotunn.Logger.LogInfo("Loading...");
+            Jotunn.Logger.LogInfo($"Loading...");
 
+            //We make sure all assetbundle objects are available before working to add custom content.
             _powershakeAssets = AssetUtils.LoadAssetBundleFromResources("powershakes");
 
-            GuckshakeSFXPrefab = _powershakeAssets.LoadAsset<GameObject>("assets/powershakes/sfx_guckshake_gaseffects.prefab");
-
-            PrefabManager.OnVanillaPrefabsAvailable += AddCustomItems;
-            _harmonyPatcher.PatchAll();
             AddCustomStatusEffects();
+            PrefabManager.OnVanillaPrefabsAvailable += AddCustomItems;
 
-            RpcGuckEffect = NetworkManager.Instance.AddRPC("RpcGuckEffect", RpcGuckEffectServerReceive, RpcGuckEffectClientReceive);
+            _harmonyPatcher.PatchAll();
 
             Jotunn.Logger.LogInfo("Loaded successfully!");
         }
-
-        #region RPCS
-        private IEnumerator RpcGuckEffectServerReceive(long sender, ZPackage package)
-        {
-            string playerName = package.ReadString();
-            Jotunn.Logger.LogInfo($"Server received from {playerName}");
-
-            ZPackage serverPackage = new();
-            serverPackage.Write(playerName);
-
-            RpcGuckEffect.SendPackage(ZNet.instance.m_peers, serverPackage);
-            PowershakeEffectsPatch.CreateGuckEffectsForPlayer(playerName);
-            yield return null;
-        }
-
-        private IEnumerator RpcGuckEffectClientReceive(long sender, ZPackage package)
-        {
-            PowershakeEffectsPatch.CreateGuckEffectsForPlayer(package.ReadString());
-            yield return null;
-        }
-        #endregion
 
         #region CUSTOM ITEMS
         /// <summary>
@@ -83,7 +59,11 @@ namespace Powershakes
         private void AddCustomItems()
         {
             AddGuckshakeItem();
+            AddGuckshake2000Item();
             AddBuckshakeItem();
+            AddBuckshake2000Item();
+            AddChuckshakeItem();
+            AddChuckshakeItem2000();
 
             PrefabManager.OnVanillaPrefabsAvailable -= AddCustomItems;
         }
@@ -94,16 +74,20 @@ namespace Powershakes
         /// </summary>
         private void AddGuckshakeItem()
         {
-            ItemConfig guckShakeConfig = new ItemConfig();
-            guckShakeConfig.Name = "$item_guckshake";
-            guckShakeConfig.Description = "$item_guckshake_desc";
-            guckShakeConfig.CraftingStation = CraftingStations.Cauldron;
+            ItemConfig guckShakeConfig = new()
+            {
+                Name = "$item_guckshake",
+                Description = "$item_guckshake_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/guckshakeicon.png")
+            };
+
             guckShakeConfig.AddRequirement(new RequirementConfig("Guck", 1));
             guckShakeConfig.AddRequirement(new RequirementConfig("Raspberry", 2));
             guckShakeConfig.AddRequirement(new RequirementConfig("Blueberries", 2));
 
-            CustomItem guckShake = new("Guckshake", "ShocklateSmoothie", guckShakeConfig);
-            guckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = SailingPowerStatusEffect.StatusEffect;
+            CustomItem guckShake = new(_powershakeAssets, "assets/powershakes/shakemodels/guckshake.prefab", false, guckShakeConfig);
+            guckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = _powershakeAssets.LoadAsset<StatusEffect>("assets/powershakes/statuseffects/GP_Custom_Moder.asset");
 
             ItemManager.Instance.AddItem(guckShake);
 
@@ -114,18 +98,53 @@ namespace Powershakes
             });
         }
 
+        private void AddGuckshake2000Item()
+        {
+            ItemConfig guckShake2000Config = new()
+            {
+                Name = "$item_guckshake2000",
+                Description = "$item_guckshake2000_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/guckshake2000icon.png"),
+                Weight = 10
+            };
+
+            guckShake2000Config.AddRequirement(new RequirementConfig("Guck", 10));
+            guckShake2000Config.AddRequirement(new RequirementConfig("Raspberry", 20));
+            guckShake2000Config.AddRequirement(new RequirementConfig("Blueberries", 20));
+
+            CustomItem guckShake2000 = new(_powershakeAssets, "assets/powershakes/shakemodels/guckshake2000.prefab", false, guckShake2000Config);
+            guckShake2000.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = GutBlasterStatusEffect.StatusEffect;
+
+            ItemManager.Instance.AddItem(guckShake2000);
+
+            Localization.AddTranslation("English", new Dictionary<string, string>
+            {
+                {"item_guckshake2000", "Guckshake2000"},
+                {"item_guckshake2000_desc", "Gotta go really fast!"}
+            });
+        }
+
+        /// <summary>
+        /// Add the Buckshake item, based on the ShocklateSmoothie prefab.
+        /// Provides the EikthyrPowerStatusEffect when consumed.
+        /// </summary>
         private void AddBuckshakeItem()
         {
-            ItemConfig buckShakeConfig = new ItemConfig();
-            buckShakeConfig.Name = "$item_buckshake";
-            buckShakeConfig.Description = "$item_buckshake_desc";
-            buckShakeConfig.CraftingStation = CraftingStations.Cauldron;
+            ItemConfig buckShakeConfig = new()
+            {
+                Name = "$item_buckshake",
+                Description = "$item_buckshake_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/buckshakeicon.png")
+            };
+
             buckShakeConfig.AddRequirement(new RequirementConfig("TrophyDeer", 1));
             buckShakeConfig.AddRequirement(new RequirementConfig("Raspberry", 2));
             buckShakeConfig.AddRequirement(new RequirementConfig("Blueberries", 2));
 
-            CustomItem buckShake = new("Buckshake", "ShocklateSmoothie", buckShakeConfig);
-            buckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = EikthyrPowerStatusEffect.StatusEffect;
+            CustomItem buckShake = new(_powershakeAssets, "assets/powershakes/shakemodels/buckshake.prefab", false, buckShakeConfig);
+            buckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = _powershakeAssets.LoadAsset<StatusEffect>("assets/powershakes/statuseffects/GP_Custom_Eikthyr.asset");
 
             ItemManager.Instance.AddItem(buckShake);
 
@@ -133,6 +152,86 @@ namespace Powershakes
             {
                 {"item_buckshake", "Buckshake"},
                 {"item_buckshake_desc", "Move those trotters!"}
+            });
+        }
+
+        private void AddBuckshake2000Item()
+        {
+            ItemConfig buckShakeConfig = new()
+            {
+                Name = "$item_buckshake2000",
+                Description = "$item_buckshake2000_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/buckshake2000icon.png"),
+                Weight = 10
+            };
+
+            buckShakeConfig.AddRequirement(new RequirementConfig("TrophyDeer", 10));
+            buckShakeConfig.AddRequirement(new RequirementConfig("Raspberry", 20));
+            buckShakeConfig.AddRequirement(new RequirementConfig("Blueberries", 20));
+
+            CustomItem buckShake = new(_powershakeAssets, "assets/powershakes/shakemodels/buckshake2000.prefab", false, buckShakeConfig);
+            buckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = DeerGodStatusEffect.StatusEffect;
+
+            ItemManager.Instance.AddItem(buckShake);
+
+            Localization.AddTranslation("English", new Dictionary<string, string>
+            {
+                {"item_buckshake2000", "Buckshake2000"},
+                {"item_buckshake2000_desc", "Oh deer!"}
+            });
+        }
+
+        private void AddChuckshakeItem()
+        {
+            ItemConfig chuckShakeConfig = new()
+            {
+                Name = "$item_chuckshake",
+                Description = "$item_chuckshake_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/chuckshakeicon.png")
+            };
+
+            chuckShakeConfig.AddRequirement(new RequirementConfig("AncientSeed", 1));
+            chuckShakeConfig.AddRequirement(new RequirementConfig("Raspberry", 2));
+            chuckShakeConfig.AddRequirement(new RequirementConfig("Blueberries", 2));
+
+            CustomItem chuckShake = new(_powershakeAssets, "assets/powershakes/shakemodels/chuckshake.prefab", false, chuckShakeConfig);
+            chuckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = _powershakeAssets.LoadAsset<StatusEffect>("assets/powershakes/statuseffects/GP_Custom_TheElder.asset");
+
+            ItemManager.Instance.AddItem(chuckShake);
+
+            Localization.AddTranslation("English", new Dictionary<string, string>
+            {
+                {"item_chuckshake", "Chuckshake"},
+                {"item_chuckshake_desc", "How much wood can a woodchuck chuck?"}
+            });
+        }
+
+        private void AddChuckshakeItem2000()
+        {
+            ItemConfig chuckShakeConfig = new()
+            {
+                Name = "$item_chuckshake2000",
+                Description = "$item_chuckshake2000_desc",
+                CraftingStation = CraftingStations.Cauldron,
+                Icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/icon/chuckshake2000icon.png"),
+                Weight = 10
+            };
+
+            chuckShakeConfig.AddRequirement(new RequirementConfig("AncientSeed", 10));
+            chuckShakeConfig.AddRequirement(new RequirementConfig("Raspberry", 20));
+            chuckShakeConfig.AddRequirement(new RequirementConfig("Blueberries", 20));
+
+            CustomItem chuckShake = new(_powershakeAssets, "assets/powershakes/shakemodels/chuckshake2000.prefab", false, chuckShakeConfig);
+            chuckShake.ItemDrop.m_itemData.m_shared.m_consumeStatusEffect = TreeMurdererStatusEffect.StatusEffect;
+
+            ItemManager.Instance.AddItem(chuckShake);
+
+            Localization.AddTranslation("English", new Dictionary<string, string>
+            {
+                {"item_chuckshake2000", "Chuckshake2000"},
+                {"item_chuckshake2000_desc", "A lot, as it turns out."}
             });
         }
         #endregion
@@ -143,27 +242,17 @@ namespace Powershakes
         /// </summary>
         private void AddCustomStatusEffects()
         {
-            AddSailingPowerStatusEffect();
-            AddEikthyrPowerStatusEffect();
+            AddGutBlasterStatusEffect();
+            AddTreeMurdererStatusEffect();
+            AddDeerGodStatusEffect();
         }
 
         /// <summary>
-        /// Adds an effect that provides Moder's sailing power for 300 seconds and
-        /// causes accompanying audio/visual effects to occur.
+        /// Adds an effect that provides Moder's Forsaken power for 300 seconds.
         /// </summary>
-        private void AddSailingPowerStatusEffect()
+        private void AddGutBlasterStatusEffect()
         {
-            StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
-            effect.name = "Gut Blaster Effect";
-            effect.m_name = "$gutblaster_effectname";
-            effect.m_ttl = 300;
-            effect.m_tooltip = "$gutblaster_tooltip";
-            effect.m_startMessage = "$gutblaster_effectstart";
-            effect.m_stopMessage = "$gutblaster_effectstop";
-            effect.m_startMessageType = MessageHud.MessageType.Center;
-            effect.m_stopMessageType = MessageHud.MessageType.Center;
-            effect.m_attributes = StatusEffect.StatusAttribute.SailingPower;
-            effect.m_icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/biohazard.png");
+            StatusEffect effect = _powershakeAssets.LoadAsset<StatusEffect>("assets/powershakes/statuseffects/GP_Custom_GutBlaster.asset");
 
             Localization.AddTranslation("English", new Dictionary<string, string>
             {
@@ -173,90 +262,59 @@ namespace Powershakes
                 {"gutblaster_tooltip", "Your bodily gases will power the sails of your ship."}
             });
 
-            SailingPowerStatusEffect = new CustomStatusEffect(effect, false);
+            GutBlasterStatusEffect = new CustomStatusEffect(effect, false);
 
-            ItemManager.Instance.AddStatusEffect(SailingPowerStatusEffect);
+            ItemManager.Instance.AddStatusEffect(GutBlasterStatusEffect);
         }
 
-        private void AddEikthyrPowerStatusEffect()
+        private void AddTreeMurdererStatusEffect()
         {
-            SE_Stats effect = ScriptableObject.CreateInstance<SE_Stats>();
-            effect.name = "Eikthyr Power";
-            effect.m_name = "$eikthyrpower_effectname";
-            effect.m_ttl = 300;
-            effect.m_tooltip = "$eikthyrpower_tooltip";
-            effect.m_startMessage = "$eikthyrpower_effectstart";
-            effect.m_stopMessage = "$eikthyrpower_effectstop";
-            effect.m_startMessageType = MessageHud.MessageType.Center;
-            effect.m_stopMessageType = MessageHud.MessageType.Center;
-            effect.m_runStaminaDrainModifier = -0.6f;
-            effect.m_jumpStaminaUseModifier = -0.6f;
-            effect.m_icon = _powershakeAssets.LoadAsset<Sprite>("assets/powershakes/eikthyr.png");
+            StatusEffect effect = _powershakeAssets.LoadAsset<StatusEffect>("assets/powershakes/statuseffects/GP_Custom_Chuckshake2000.asset");
 
             Localization.AddTranslation("English", new Dictionary<string, string>
             {
-                {"eikthyrpower_effectname", "Eikthyr"},
-                {"eikthyrpower_effectstart", "The power of Eikthyr suffuses your veins"},
-                {"eikthyrpower_effectstop", "You feel Eikthyr's power fading"},
-                {"eikthyrpower_tooltip", "Running and jumping use 60% less stamina."}
+                {"treemurderer_effectname", "Tree Murderer"},
+                {"treemurderer_effectstart", "You feel the ancient seeds rage in your mind..."},
+                {"treemurderer_effectstop", "The rage of the ancient seeds begins to fade"},
+                {"treemurderer_tooltip", "You do 2000% damage to trees."}
             });
 
-            EikthyrPowerStatusEffect = new CustomStatusEffect(effect, false);
+            TreeMurdererStatusEffect = new CustomStatusEffect(effect, false);
 
-            ItemManager.Instance.AddStatusEffect(EikthyrPowerStatusEffect);
+            ItemManager.Instance.AddStatusEffect(TreeMurdererStatusEffect);
+        }
+
+        private void AddDeerGodStatusEffect()
+        {
+            SE_Stats effect = _powershakeAssets.LoadAsset<SE_Stats>("assets/powershakes/statuseffects/GP_Custom_Buckshake2000.asset");
+
+            Localization.AddTranslation("English", new Dictionary<string, string>
+            {
+                {"deergod_effectname", "Deer God"},
+                {"deergod_effectstart", "You feel a need, a need for speed..."},
+                {"deergod_effectstop", "The need for speed begins to fade"},
+                {"deergod_tooltip", "Running and jumping use 80% less stamina. You move 100% faster and jump 40% higher and take 90% less fall damage."}
+            });
+
+            DeerGodStatusEffect = new CustomStatusEffect(effect, false);
+
+            ItemManager.Instance.AddStatusEffect(DeerGodStatusEffect);
         }
         #endregion
 
-        #region PATCHES STATUS EFFECTS
-        /// <summary>
-        /// Whenever the player eats, we first check if it's one of the powershakes and then propagate any 
-        /// effects to the server.
-        /// </summary>
-        [HarmonyPatch(typeof(Player), nameof(Player.EatFood))]
-        class PowershakeEffectsPatch
+        #region PATCHES 
+        [HarmonyPatch(typeof(Ship), nameof(Ship.GetSailForce))]
+        class Guckshake2000ShipEffectsPatch
         {
-            static void Prefix(Player __instance, ItemDrop.ItemData item)
+            static void Postfix(Ship __instance, ref Vector3 __result)
             {
-                StatusEffect foodStatusEffect = item?.m_shared?.m_consumeStatusEffect;
+                Player targetPlayer = Player.GetPlayer(__instance.m_shipControlls.GetUser());
+                if (targetPlayer == null || !targetPlayer.m_seman.HaveStatusEffect("GP_Custom_GutBlaster".GetStableHashCode())) return;
 
-                if (foodStatusEffect == null || !__instance.CanEat(item, false))
-                {
-                    return;
-                }
-
-                if (foodStatusEffect.m_name == "$gutblaster_effectname")
-                {
-                    ZPackage package = new ZPackage();
-                    package.Write(__instance.GetPlayerName());
-
-                    RpcGuckEffect.SendPackage(ZNet.GetUID(), package);
-                }
-            }
-
-            public static void CreateGuckEffectsForPlayer(string playerName)
-            {
-                Player targetPlayer = FindObjectsOfType<Player>().First(n => n.GetPlayerName() == playerName);
-                if (targetPlayer == null)
-                {
-                    Jotunn.Logger.LogWarning($"Failed to create effects on player: '{playerName}' not found.");
-                    return;
-                }
-
-                GameObject randomSFXPlayer = new();
-                randomSFXPlayer.transform.parent = targetPlayer.gameObject.transform;
-
-                TimedDestruction timer = randomSFXPlayer.AddComponent<TimedDestruction>();
-                timer.m_timeout = PowershakesPlugin.SailingPowerStatusEffect.StatusEffect.m_ttl;
-                timer.Trigger();
-
-                RandomSFXPlayer sfx = randomSFXPlayer.AddComponent<RandomSFXPlayer>();
-                sfx.Trigger(targetPlayer.transform);
-
-                GameObject gutBlasterEffectsVFX = Instantiate(_powershakeAssets.LoadAsset<GameObject>("assets/powershakes/vfx_guckshake_gaseffects.prefab"), targetPlayer.gameObject.transform);
-                gutBlasterEffectsVFX.transform.localPosition = new Vector3(0, 0.9f, 0);
+                __result *= 5;
             }
         }
-        #endregion 
+        #endregion
     }
 }
 
